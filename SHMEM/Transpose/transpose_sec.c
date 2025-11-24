@@ -112,6 +112,7 @@ o The original and transposed matrices are called A and B
 #include <par-res-kern_shmem.h>
 
 #include <math.h>
+#include "shmemx.h"
 
 #define A(i,j)        A_p[(i+istart)+order*(j)]
 #define B(i,j)        B_p[(i+istart)+order*(j)]
@@ -387,7 +388,8 @@ int main(int argc, char ** argv)
       shmem_barrier_all();
 #endif
 
-      shmem_double_put(&Work_in_p[phase-1][0], &Work_out_p[0], Block_size, send_to);
+      //shmem_double_put(&Work_in_p[phase-1][0], &Work_out_p[0], Block_size, send_to);
+      shmemx_secure_put(SHMEM_CTX_DEFAULT, &Work_in_p[phase-1][0], &Work_out_p[0], Block_size, send_to);
       shmem_fence();
 
 #if !BARRIER_SYNCH

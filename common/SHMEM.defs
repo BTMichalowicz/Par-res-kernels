@@ -1,6 +1,6 @@
 include ../../common/make.defs
 ifeq ($(SHMEMCC),)
-    SHMEMCC=true
+    SHMEMCC=oshcc
 endif
 CCOMPILER=$(SHMEMCC)
 CLINKER=$(CCOMPILER)

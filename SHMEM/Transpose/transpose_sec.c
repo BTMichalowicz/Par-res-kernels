@@ -389,7 +389,7 @@ int main(int argc, char ** argv)
 #endif
 
       //shmem_double_put(&Work_in_p[phase-1][0], &Work_out_p[0], Block_size, send_to);
-      shmemx_secure_put(SHMEM_CTX_DEFAULT, &Work_in_p[phase-1][0], &Work_out_p[0], Block_size, send_to);
+      shmemx_secure_put(SHMEM_CTX_DEFAULT, &Work_in_p[phase-1][0], &Work_out_p[0], Block_size * sizeof(double), send_to);
       shmem_fence();
 
 #if !BARRIER_SYNCH

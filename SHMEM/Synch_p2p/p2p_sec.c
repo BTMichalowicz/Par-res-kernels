@@ -265,7 +265,7 @@ int main(int argc, char ** argv)
       }
 #if SYNCHRONOUS
       flag_left[0]= true;
-      shmemx_secure_put(SHMEM_CTX_DEFAULT, &flag_right[0], &(true), sizeof(int), root);
+     // shmemx_secure_put(SHMEM_CTX_DEFAULT, &flag_right[0], &(true), sizeof(int), root);
       shmem_int_p(&flag_right[0], true, root);
       shmem_fence();
 #endif      

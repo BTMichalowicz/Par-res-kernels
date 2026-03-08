@@ -335,7 +335,7 @@ int main(int argc, char ** argv)
   for (iter = 0; iter<=iterations; iter++){
 
     /* start timer after a warmup iteration                                        */
-    if (iter == 1) { 
+    if (iter == 3) { 
       shmem_barrier_all();
       local_trans_time[0] = wtime();
     }

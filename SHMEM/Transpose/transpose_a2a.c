@@ -285,7 +285,9 @@ int main(int argc, char ** argv)
     }
 
     shmem_barrier_all();
+    shmem_fence();
     shmem_double_alltoall(SHMEM_TEAM_WORLD, T_p, A_p, Block_order*Block_order);
+    shmem_fence();
 
     for (phase=0; phase<Num_procs; phase++){
       int lo = Block_order*Block_order*phase;

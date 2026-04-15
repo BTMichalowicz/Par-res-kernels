@@ -4,7 +4,7 @@ include ../../common/SHMEM.defs
 #uncomment any of the following flags (and change values) to change defaults
 
 OPTFLAGS    = $(DEFAULT_OPT_FLAGS)
-OPTFLAGS	= -O0 -g -Wall
+OPTFLAGS	= -O3 -g -Wall -Wno-implicit-function-declaration
 #description: change above into something that is a decent optimization on you system
 
 USERFLAGS    = 

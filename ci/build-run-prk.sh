@@ -83,7 +83,7 @@ case "$PRK_TARGET" in
     allserial)
         echo "Serial"
         echo "CC=$CC -std=c99" >> common/make.defs
-        ${MAKE} $PRK_TARGET
+        ${MAKE} -f Makefile.legacy $PRK_TARGET
         export PRK_TARGET_PATH=SERIAL
         $PRK_TARGET_PATH/Synch_p2p/p2p       10 1024 1024
         $PRK_TARGET_PATH/Stencil/stencil     10 1000
@@ -142,7 +142,7 @@ case "$PRK_TARGET" in
         echo "EXTRA_CLIBS=-lm -lpthread" >> common/make.defs
 
         # C11 without external parallelism
-        ${MAKE} -C $PRK_TARGET_PATH nstream p2p stencil transpose p2p-hyperplane
+        ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy nstream p2p stencil transpose p2p-hyperplane
         $PRK_TARGET_PATH/nstream         10 16777216 32
         $PRK_TARGET_PATH/p2p             10 1024 1024
         $PRK_TARGET_PATH/p2p             10 1024 1024 100 100
@@ -158,7 +158,7 @@ case "$PRK_TARGET" in
         done
 
         # C11 2D VLA
-        ${MAKE} -C $PRK_TARGET_PATH p2p-2d stencil-2d transpose-2d p2p-tasks-2d p2p-hyperplane-2d
+        ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy p2p-2d stencil-2d transpose-2d p2p-tasks-2d p2p-hyperplane-2d
         $PRK_TARGET_PATH/p2p-2d             10 1024 1024
         $PRK_TARGET_PATH/p2p-2d             10 1024 1024 100 100
         $PRK_TARGET_PATH/p2p-tasks-2d       10 1024 1024
@@ -175,7 +175,7 @@ case "$PRK_TARGET" in
         done
 
         # C11 with POSIX or C11 thread parallelism - test POSIX here, C11 at the end.
-        ${MAKE} -C $PRK_TARGET_PATH transpose-thread
+        ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy transpose-thread
         $PRK_TARGET_PATH/transpose-thread   10 1024 512
 
         # C11 with OpenMP
@@ -192,7 +192,12 @@ case "$PRK_TARGET" in
             export LD_LIBRARY_PATH=${LLVMPATH}/lib:$LD_LIBRARY_PATH
             export DYLD_LIBRARY_PATH=${LLVMPATH}/lib:$DYLD_LIBRARY_PATH
         elif [ "$os" = "Linux" ] && [ "${CC}" = "clang" ] ; then
-            LLVMPATH=/usr/lib/llvm-8 # dirty hack FIXME
+            # Derive LLVMPATH from whichever clang is actually on PATH,
+            # instead of a hardcoded version (previously /usr/lib/llvm-8,
+            # which predates the current CI runner image and no longer
+            # exists -- this must keep working as Ubuntu's default clang
+            # version changes over time).
+            LLVMPATH=$(dirname $(dirname $(dirname $(clang -print-resource-dir))))
             echo "LLVMPATH=${LLVMPATH}"
             echo "CC=${LLVMPATH}/bin/clang -std=c99" >> common/make.defs
             echo "OPENMPFLAG=-fopenmp" \
@@ -206,7 +211,7 @@ case "$PRK_TARGET" in
             echo "OPENMPFLAG=-fopenmp" >> common/make.defs
         fi
         export OMP_NUM_THREADS=2
-        ${MAKE} -C $PRK_TARGET_PATH nstream-openmp p2p-tasks-openmp p2p-hyperplane-openmp stencil-openmp transpose-openmp
+        ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy nstream-openmp p2p-tasks-openmp p2p-hyperplane-openmp stencil-openmp transpose-openmp
         $PRK_TARGET_PATH/nstream-openmp           10 16777216 32
         $PRK_TARGET_PATH/p2p-tasks-openmp         10 1024 1024 100 100
         $PRK_TARGET_PATH/p2p-hyperplane-openmp    10 1024
@@ -220,7 +225,7 @@ case "$PRK_TARGET" in
             done
         done
         # OpenMP C11 2D VLA
-        ${MAKE} -C $PRK_TARGET_PATH p2p-tasks-2d-openmp p2p-hyperplane-2d-openmp stencil-2d-openmp transpose-2d-openmp
+        ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy p2p-tasks-2d-openmp p2p-hyperplane-2d-openmp stencil-2d-openmp transpose-2d-openmp
         $PRK_TARGET_PATH/p2p-tasks-2d-openmp       10 1024 1024
         $PRK_TARGET_PATH/p2p-tasks-2d-openmp       10 1024 1024 100 100
         $PRK_TARGET_PATH/p2p-hyperplane-2d-openmp  10 1024
@@ -236,7 +241,7 @@ case "$PRK_TARGET" in
         # Target Offload
         if [ "${CC}" = "gcc" ] && [ ! true ] ; then
             echo "OFFLOADFLAG=-foffload=\"-O3 -v\"" >> common/make.defs
-            ${MAKE} -C $PRK_TARGET_PATH target
+            ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy target
             $PRK_TARGET_PATH/nstream-target     10 16777216
             $PRK_TARGET_PATH/stencil-target     10 1000
             $PRK_TARGET_PATH/transpose-target   10 1024 32
@@ -250,12 +255,12 @@ case "$PRK_TARGET" in
 
         # Use MUSL for GCC+Linux only
         if [ "$os" = "Linux" ] && [ "$CC" = "gcc" ] ; then
-            ${MAKE} -C $PRK_TARGET_PATH clean
+            ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy clean
             sh ./ci/install-musl.sh ${CI_ROOT} ${PRK_CC}
             echo "PRKVERSION=\"'2.16'\"" > common/make.defs
             echo "CC=${CI_ROOT}/musl/bin/musl-gcc -static -std=c11 -DUSE_C11_THREADS" >> common/make.defs
             echo "EXTRA_CLIBS=-lm -lpthread" >> common/make.defs
-            ${MAKE} -C $PRK_TARGET_PATH transpose-thread
+            ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy transpose-thread
             $PRK_TARGET_PATH/transpose-thread   10 1024 512
         fi
 
@@ -320,12 +325,12 @@ case "$PRK_TARGET" in
         echo "CXX=${PRK_CXX} -std=c++17 -pthread" >> common/make.defs
 
         # C++11 without external parallelism
-        ${MAKE} -C $PRK_TARGET_PATH transpose-valarray nstream-valarray
+        ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy transpose-valarray nstream-valarray
         $PRK_TARGET_PATH/transpose-valarray 10 1024 32
         $PRK_TARGET_PATH/nstream-valarray   10 16777216 32
 
         # C++11 without external parallelism
-        ${MAKE} -C $PRK_TARGET_PATH p2p-vector p2p-hyperplane-vector stencil-vector transpose-vector nstream-vector \
+        ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy p2p-vector p2p-hyperplane-vector stencil-vector transpose-vector nstream-vector \
                                  dgemm-vector sparse-vector
         $PRK_TARGET_PATH/p2p-vector              10 1024 1024
         $PRK_TARGET_PATH/p2p-vector              10 1024 1024 100 100
@@ -347,13 +352,13 @@ case "$PRK_TARGET" in
         # C++11 with CBLAS
         if [ "$os" = "Darwin" ] ; then
             echo "CBLASFLAG=-DACCELERATE -framework Accelerate -flax-conversions" >> common/make.defs
-            ${MAKE} -C $PRK_TARGET_PATH transpose-cblas dgemm-cblas
+            ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy transpose-cblas dgemm-cblas
             $PRK_TARGET_PATH/transpose-cblas    10 1024
             $PRK_TARGET_PATH/dgemm-cblas        10 400
         fi
 
         # C++11 native parallelism
-        ${MAKE} -C $PRK_TARGET_PATH transpose-thread transpose-async
+        ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy transpose-thread transpose-async
         $PRK_TARGET_PATH/transpose-thread 10 1024 512 32
         $PRK_TARGET_PATH/transpose-async  10 1024 512 32
 
@@ -364,7 +369,7 @@ case "$PRK_TARGET" in
                 # Host
                 echo "CC=$PRK_CC -std=c99" >> common/make.defs
                 echo "OPENMPFLAG=-fopenmp" >> common/make.defs
-                ${MAKE} -C $PRK_TARGET_PATH p2p-tasks-openmp p2p-hyperplane-openmp stencil-openmp \
+                ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy p2p-tasks-openmp p2p-hyperplane-openmp stencil-openmp \
                                             transpose-openmp nstream-openmp
                 $PRK_TARGET_PATH/p2p-tasks-openmp                 10 1024 1024 100 100
                 $PRK_TARGET_PATH/p2p-hyperplane-openmp     10 1024
@@ -380,7 +385,7 @@ case "$PRK_TARGET" in
                 done
                 # Offload
                 echo "OFFLOADFLAG=-foffload=\"-O3 -v\"" >> common/make.defs
-                ${MAKE} -C $PRK_TARGET_PATH target
+                ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy target
                 $PRK_TARGET_PATH/stencil-openmp-target     10 1000
                 $PRK_TARGET_PATH/transpose-openmp-target   10 1024 32
                 #echo "Test stencil code generator"
@@ -391,7 +396,7 @@ case "$PRK_TARGET" in
                 done
                 # ORNL-ACC - do not test in Travis CI because GCC-5 is too old
                 #echo "OPENACCFLAG=-fopenacc" >> common/make.defs
-                #${MAKE} -C $PRK_TARGET_PATH p2p-hyperplane-openacc
+                #${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy p2p-hyperplane-openacc
                 #$PRK_TARGET_PATH/p2p-hyperplane-openacc     10 1024
                 #$PRK_TARGET_PATH/p2p-hyperplane-openacc     10 1024 64
                 ;;
@@ -409,7 +414,12 @@ case "$PRK_TARGET" in
                     export LD_LIBRARY_PATH=${LLVMPATH}/lib:$LD_LIBRARY_PATH
                     export DYLD_LIBRARY_PATH=${LLVMPATH}/lib:$DYLD_LIBRARY_PATH
                 elif [ "$os" = "Linux" ] && [ "${CC}" = "clang" ] ; then
-                    LLVMPATH=/usr/lib/llvm-8 # dirty hack FIXME
+                    # Derive LLVMPATH from whichever clang is actually on PATH,
+                    # instead of a hardcoded version (previously /usr/lib/llvm-8,
+                    # which predates the current CI runner image and no longer
+                    # exists -- this must keep working as Ubuntu's default clang
+                    # version changes over time).
+                    LLVMPATH=$(dirname $(dirname $(dirname $(clang -print-resource-dir))))
                     echo "LLVMPATH=${LLVMPATH}"
                     echo "CC=${LLVMPATH}/bin/clang -std=c99" >> common/make.defs
                     echo "OPENMPFLAG=-fopenmp" \
@@ -422,7 +432,7 @@ case "$PRK_TARGET" in
                     echo "CC=$PRK_CC -std=c99" >> common/make.defs
                     echo "OPENMPFLAG=-fopenmp" >> common/make.defs
                 fi
-                ${MAKE} -C $PRK_TARGET_PATH p2p-tasks-openmp p2p-hyperplane-openmp stencil-openmp \
+                ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy p2p-tasks-openmp p2p-hyperplane-openmp stencil-openmp \
                                             transpose-openmp nstream-openmp
                 $PRK_TARGET_PATH/p2p-tasks-openmp          10 1024 1024 100 100
                 $PRK_TARGET_PATH/p2p-hyperplane-openmp     10 1024
@@ -453,7 +463,7 @@ case "$PRK_TARGET" in
         # C++11 with ranges and Boost.Ranges
         #if [ ! "${CC}" = "gcc" ] && [ ! "$os" = "Linux" ] ; then
         if [ ! true ] ; then
-            ${MAKE} -C $PRK_TARGET_PATH ranges
+            ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy ranges
             $PRK_TARGET_PATH/stencil-ranges     10 1000
             $PRK_TARGET_PATH/transpose-ranges   10 1024 32
             $PRK_TARGET_PATH/nstream-ranges     10 16777216 32
@@ -479,7 +489,7 @@ case "$PRK_TARGET" in
                 export LD_LIBRARY_PATH=${TBBROOT}/lib:${LD_LIBRARY_PATH}
                 ;;
         esac
-        ${MAKE} -C $PRK_TARGET_PATH p2p-innerloop-tbb p2p-hyperplane-tbb p2p-tasks-tbb stencil-tbb transpose-tbb nstream-tbb
+        ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy p2p-innerloop-tbb p2p-hyperplane-tbb p2p-tasks-tbb stencil-tbb transpose-tbb nstream-tbb
         $PRK_TARGET_PATH/p2p-innerloop-tbb     10 1024
         $PRK_TARGET_PATH/p2p-hyperplane-tbb    10 1024 1
         $PRK_TARGET_PATH/p2p-hyperplane-tbb    10 1024 32
@@ -495,7 +505,7 @@ case "$PRK_TARGET" in
         done
 
         # C++11 with STL
-        ${MAKE} -C $PRK_TARGET_PATH p2p-hyperplane-stl stencil-stl transpose-stl nstream-stl
+        ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy p2p-hyperplane-stl stencil-stl transpose-stl nstream-stl
         $PRK_TARGET_PATH/p2p-hyperplane-stl    10 1024 1
         $PRK_TARGET_PATH/p2p-hyperplane-stl    10 1024 32
         $PRK_TARGET_PATH/stencil-stl           10 1000
@@ -516,7 +526,7 @@ case "$PRK_TARGET" in
                 # omp.h not found with clang-3.9 - just work around instead of fixing.
                 echo "PSTLFLAG+=-fopenmp" >> common/make.defs
             fi
-            ${MAKE} -C $PRK_TARGET_PATH p2p-hyperplane-pstl stencil-pstl transpose-pstl nstream-pstl
+            ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy p2p-hyperplane-pstl stencil-pstl transpose-pstl nstream-pstl
             $PRK_TARGET_PATH/p2p-hyperplane-pstl    10 1024 1
             $PRK_TARGET_PATH/p2p-hyperplane-pstl    10 1024 32
             $PRK_TARGET_PATH/stencil-pstl           10 1000
@@ -533,7 +543,7 @@ case "$PRK_TARGET" in
         # C++11 with OpenCL
         if [ "$os" = "Darwin" ] ; then
             echo "OPENCLFLAG=-framework OpenCL" >> common/make.defs
-            ${MAKE} -C $PRK_TARGET_PATH opencl
+            ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy opencl
             # must run programs in same directory as OpenCL source files...
             cd $PRK_TARGET_PATH
             ./stencil-opencl     10 1000
@@ -555,7 +565,7 @@ case "$PRK_TARGET" in
         # (2) Boost.Compute is not available from APT.
         # If we ever address 1, we need to enable the Boost.Compute install for Linux.
         #if [ "$os" = "Darwin" ] ; then
-        #    ${MAKE} -C $PRK_TARGET_PATH nstream-boost-compute
+        #    ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy nstream-boost-compute
         #    $PRK_TARGET_PATH/nstream-boost-compute     10 16777216 32
         #fi
 
@@ -576,7 +586,7 @@ case "$PRK_TARGET" in
 
         # RAJA
         if [ 0 = 1 ] ; then
-             ${MAKE} -C $PRK_TARGET_PATH p2p-raja stencil-raja transpose-raja nstream-raja \
+             ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy p2p-raja stencil-raja transpose-raja nstream-raja \
                                          p2p-vector-raja stencil-vector-raja transpose-vector-raja nstream-vector-raja
              # New (Views)
              $PRK_TARGET_PATH/p2p-raja                10 1024 1024
@@ -608,7 +618,7 @@ case "$PRK_TARGET" in
         fi
 
         # Kokkos
-        ${MAKE} -C $PRK_TARGET_PATH stencil-kokkos transpose-kokkos nstream-kokkos
+        ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy stencil-kokkos transpose-kokkos nstream-kokkos
         $PRK_TARGET_PATH/stencil-kokkos     10 1000
         $PRK_TARGET_PATH/transpose-kokkos   10 1024 32
         $PRK_TARGET_PATH/nstream-kokkos     10 16777216 32
@@ -623,7 +633,7 @@ case "$PRK_TARGET" in
         #if [ "$os" = "Linux" ] ; then
         #    echo "OCCADIR=${CI_ROOT}/occa" >> common/make.defs
         #    export OCCA_CXX=${PRK_CXX}
-        #    ${MAKE} -C $PRK_TARGET_PATH transpose-occa nstream-occa
+        #    ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy transpose-occa nstream-occa
         #    $PRK_TARGET_PATH/transpose-occa   10 1024 32
         #    $PRK_TARGET_PATH/nstream-occa     10 16777216 32
         #fi
@@ -639,7 +649,7 @@ case "$PRK_TARGET" in
                 echo "SYCLCXX=${PRK_CXX} -fopenmp -std=c++1z" >> common/make.defs
             fi
             echo "SYCLFLAG=-I${SYCLDIR}/include" >> common/make.defs
-            ${MAKE} -C $PRK_TARGET_PATH p2p-hyperplane-sycl stencil-sycl transpose-sycl nstream-sycl
+            ${MAKE} -C $PRK_TARGET_PATH -f Makefile.legacy p2p-hyperplane-sycl stencil-sycl transpose-sycl nstream-sycl
             #$PRK_TARGET_PATH/p2p-hyperplane-sycl 10 50 1 # 100 takes too long :-o
             $PRK_TARGET_PATH/stencil-sycl        10 1000
             $PRK_TARGET_PATH/transpose-sycl      10 1024 32
@@ -674,8 +684,10 @@ case "$PRK_TARGET" in
                 echo "OPENMPFLAG=-fopenmp" >> common/make.defs
                 echo "OFFLOADFLAG=-foffload=\"-O3 -v\"" >> common/make.defs
                 if [ "$os" = "Darwin" ] ; then
-                    # Homebrew installs a symlink in /usr/local/bin
-                    export PRK_CAFC=/usr/local/bin/caf
+                    # Homebrew installs a symlink into its prefix's bin/:
+                    # /usr/local on Intel, /opt/homebrew on Apple Silicon
+                    # (which is what GitHub's macos-latest runners are now).
+                    export PRK_CAFC="`brew --prefix`/bin/caf"
                 elif [ "$os" = "Linux" ] ; then
                     export PRK_CAFC=${CI_ROOT}/opencoarrays/bin/caf
                 fi
@@ -700,7 +712,7 @@ case "$PRK_TARGET" in
         echo "OFFLOADFLAG+=-DGPU_SCHEDULE=\"\"" >> common/make.defs
 
         # Serial
-        ${MAKE} -C ${PRK_TARGET_PATH} p2p p2p-innerloop stencil transpose nstream dgemm
+        ${MAKE} -C ${PRK_TARGET_PATH} -f Makefile.legacy p2p p2p-innerloop stencil transpose nstream dgemm
         $PRK_TARGET_PATH/p2p               10 1024 1024
         $PRK_TARGET_PATH/p2p-innerloop     10 1024
         $PRK_TARGET_PATH/stencil           10 1000
@@ -711,7 +723,7 @@ case "$PRK_TARGET" in
         $PRK_TARGET_PATH/dgemm             10 400 32
 
         # Pretty
-        ${MAKE} -C ${PRK_TARGET_PATH} stencil-pretty transpose-pretty nstream-pretty dgemm-pretty
+        ${MAKE} -C ${PRK_TARGET_PATH} -f Makefile.legacy stencil-pretty transpose-pretty nstream-pretty dgemm-pretty
         #$PRK_TARGET_PATH/p2p-pretty          10 1024 1024
         # pretty versions do not support tiling...
         $PRK_TARGET_PATH/stencil-pretty      10 1000
@@ -720,7 +732,7 @@ case "$PRK_TARGET" in
         $PRK_TARGET_PATH/dgemm-pretty        10 400
 
         # OpenMP host
-        ${MAKE} -C ${PRK_TARGET_PATH} p2p-tasks-openmp p2p-innerloop-openmp stencil-openmp transpose-openmp \
+        ${MAKE} -C ${PRK_TARGET_PATH} -f Makefile.legacy p2p-tasks-openmp p2p-innerloop-openmp stencil-openmp transpose-openmp \
                                    nstream-openmp dgemm-openmp
         export OMP_NUM_THREADS=2
         $PRK_TARGET_PATH/p2p-tasks-openmp     10 1024 1024
@@ -735,7 +747,7 @@ case "$PRK_TARGET" in
 
         # OpenMP target
         if [ "${CC}" = "gcc" ] ; then
-            ${MAKE} -C ${PRK_TARGET_PATH} stencil-openmp-target transpose-openmp-target nstream-openmp-target
+            ${MAKE} -C ${PRK_TARGET_PATH} -f Makefile.legacy stencil-openmp-target transpose-openmp-target nstream-openmp-target
             export OMP_NUM_THREADS=2
             #$PRK_TARGET_PATH/p2p-openmp-target           10 1024 1024 # most compilers do not support doacross yet
             $PRK_TARGET_PATH/stencil-openmp-target       10 1000
@@ -747,14 +759,17 @@ case "$PRK_TARGET" in
         # Fortran coarrays
         # Disable GCC Linux because installing OpenCoarrays is not working
         if [ "${CC}" = "gcc" ] && [ "$os" = "Darwin" ] ; then
-            ${MAKE} -C ${PRK_TARGET_PATH} coarray
+            ${MAKE} -C ${PRK_TARGET_PATH} -f Makefile.legacy coarray
             export PRK_MPI_PROCS=4
             if [ "${CC}" = "gcc" ] ; then
                 if [ "$os" = "Darwin" ] ; then
-                    # Homebrew installs a symlink in /usr/local/bin
-                    ls -l /usr/local/bin/cafrun || true
+                    # Homebrew installs a symlink into its prefix's bin/:
+                    # /usr/local on Intel, /opt/homebrew on Apple Silicon
+                    # (what GitHub's macos-latest runners are now).
+                    PRK_BREW_PREFIX="`brew --prefix`"
+                    ls -l "${PRK_BREW_PREFIX}/bin/cafrun" || true
                     which cafrun || true
-                    export PRK_LAUNCHER="/usr/local/bin/cafrun"
+                    export PRK_LAUNCHER="${PRK_BREW_PREFIX}/bin/cafrun"
                     # OpenCoarrays uses Open-MPI on Mac thanks to Homebrew
                     # see https://github.com/open-mpi/ompi/issues/2956
                     export PRK_OVERSUBSCRIBE="--oversubscribe"
@@ -790,7 +805,12 @@ case "$PRK_TARGET" in
             export LD_LIBRARY_PATH=${LLVMPATH}/lib:$LD_LIBRARY_PATH
             export DYLD_LIBRARY_PATH=${LLVMPATH}/lib:$DYLD_LIBRARY_PATH
         elif [ "$os" = "Linux" ] && [ "${CC}" = "clang" ] ; then
-            LLVMPATH=/usr/lib/llvm-8 # dirty hack FIXME
+            # Derive LLVMPATH from whichever clang is actually on PATH,
+            # instead of a hardcoded version (previously /usr/lib/llvm-8,
+            # which predates the current CI runner image and no longer
+            # exists -- this must keep working as Ubuntu's default clang
+            # version changes over time).
+            LLVMPATH=$(dirname $(dirname $(dirname $(clang -print-resource-dir))))
             echo "LLVMPATH=${LLVMPATH}"
             echo "CC=${LLVMPATH}/bin/clang -std=c99" >> common/make.defs
             echo "OPENMPFLAG=-fopenmp" \
@@ -802,7 +822,7 @@ case "$PRK_TARGET" in
             echo "CC=$CC -std=c99" >> common/make.defs
             echo "OPENMPFLAG=-fopenmp" >> common/make.defs
         fi
-        ${MAKE} $PRK_TARGET
+        ${MAKE} -f Makefile.legacy $PRK_TARGET
         export PRK_TARGET_PATH=OPENMP
         export OMP_NUM_THREADS=4
         $PRK_TARGET_PATH/Synch_p2p/p2p            $OMP_NUM_THREADS 10 1024 1024
@@ -869,7 +889,7 @@ case "$PRK_TARGET" in
         echo "OPENMPFLAG=-fopenmp" >> common/make.defs
 
         echo "MPI-1"
-        ${MAKE} allmpi1
+        ${MAKE} -f Makefile.legacy allmpi1
         export PRK_TARGET_PATH=MPI1
         export PRK_MPI_PROCS=4
         export PRK_RUN="$PRK_LAUNCHER -n $PRK_MPI_PROCS ${PRK_OVERSUBSCRIBE:-}"
@@ -893,7 +913,7 @@ case "$PRK_TARGET" in
         # MPI+OpenMP is just too much of a pain with Clang right now.
         if [ "${CC}" = "gcc" ] ; then
             echo "MPI+OpenMP"
-            ${MAKE} allmpiomp
+            ${MAKE} -f Makefile.legacy allmpiomp
             export PRK_TARGET_PATH=MPIOPENMP
             export PRK_MPI_PROCS=2
             export OMP_NUM_THREADS=2
@@ -905,7 +925,7 @@ case "$PRK_TARGET" in
         fi
 
         echo "MPI-RMA"
-        ${MAKE} allmpirma
+        ${MAKE} -f Makefile.legacy allmpirma
         export PRK_TARGET_PATH=MPIRMA
         export PRK_MPI_PROCS=4
         export PRK_RUN="$PRK_LAUNCHER -n $PRK_MPI_PROCS ${PRK_OVERSUBSCRIBE:-}"
@@ -914,7 +934,7 @@ case "$PRK_TARGET" in
         $PRK_RUN $PRK_TARGET_PATH/Transpose/transpose 10 1024 32
 
         echo "MPI+MPI"
-        ${MAKE} allmpishm
+        ${MAKE} -f Makefile.legacy allmpishm
         export PRK_TARGET_PATH=MPISHM
         export PRK_MPI_PROCS=4
         export PRK_RUN="$PRK_LAUNCHER -n $PRK_MPI_PROCS ${PRK_OVERSUBSCRIBE:-}"
@@ -929,7 +949,7 @@ case "$PRK_TARGET" in
         export LD_LIBRARY_PATH=${CI_ROOT}/sandia-openshmem/lib:${CI_ROOT}/libfabric/lib:$LD_LIBRARY_PATH
         export SHMEM_ROOT=${CI_ROOT}/sandia-openshmem
         echo "SHMEMTOP=$SHMEM_ROOT\nSHMEMCC=$SHMEM_ROOT/bin/oshcc" >> common/make.defs
-        ${MAKE} $PRK_TARGET
+        ${MAKE} -f Makefile.legacy $PRK_TARGET
         export PRK_TARGET_PATH=SHMEM
         export PRK_SHMEM_PROCS=4
         export OSHRUN_LAUNCHER=${CI_ROOT}/hydra/bin/mpirun
@@ -959,7 +979,7 @@ case "$PRK_TARGET" in
                 echo "UPCC=$UPC_ROOT/bin/upc" >> common/make.defs
                 export PRK_LAUNCHER=""
                 export PRK_LAUNCHER_ARGS="-n $PRK_UPC_PROCS"
-                ${MAKE} $PRK_TARGET
+                ${MAKE} -f Makefile.legacy $PRK_TARGET
                 ;;
             bupc)
                 export UPC_ROOT=${CI_ROOT}/bupc-$CC
@@ -986,7 +1006,7 @@ case "$PRK_TARGET" in
                         export PRK_LAUNCHER="$UPC_ROOT/bin/upcrun -N 1 -n $PRK_UPC_PROCS -c $PRK_UPC_PROCS"
                         ;;
                 esac
-                ${MAKE} $PRK_TARGET PRK_FLAGS="-Wc,-O3"
+                ${MAKE} -f Makefile.legacy $PRK_TARGET PRK_FLAGS="-Wc,-O3"
                 ;;
             *)
                 echo "Invalid value of UPC_IMPL ($UPC_IMPL)"
@@ -1012,7 +1032,7 @@ case "$PRK_TARGET" in
                 ;;
         esac
         echo "CHARMTOP=$CHARM_ROOT" >> common/make.defs
-        ${MAKE} $PRK_TARGET PRK_FLAGS=-O3
+        ${MAKE} -f Makefile.legacy $PRK_TARGET PRK_FLAGS=-O3
         export PRK_TARGET_PATH=CHARM++
         export PRK_CHARM_PROCS=4
         export PRK_LAUNCHER=$CHARM_ROOT/bin/charmrun
@@ -1040,7 +1060,7 @@ case "$PRK_TARGET" in
                 ;;
         esac
         echo "CHARMTOP=$CHARM_ROOT" >> common/make.defs
-        ${MAKE} $PRK_TARGET PRK_FLAGS="-O3 -std=gnu99"
+        ${MAKE} -f Makefile.legacy $PRK_TARGET PRK_FLAGS="-O3 -std=gnu99"
         export PRK_TARGET_PATH=AMPI
         export PRK_CHARM_PROCS=4
         export PRK_LAUNCHER=$CHARM_ROOT/bin/charmrun
@@ -1071,7 +1091,7 @@ case "$PRK_TARGET" in
         echo "Fine-Grain MPI (FG-MPI)"
         export FGMPI_ROOT=${CI_ROOT}/fgmpi
         echo "FGMPITOP=$FGMPI_ROOT\nFGMPICC=$FGMPI_ROOT/bin/mpicc -std=c99" >> common/make.defs
-        ${MAKE} $PRK_TARGET
+        ${MAKE} -f Makefile.legacy $PRK_TARGET
         export PRK_TARGET_PATH=FG_MPI
         export PRK_MPI_PROCS=2
         export PRK_FGMPI_THREADS=2
@@ -1098,7 +1118,7 @@ case "$PRK_TARGET" in
         export SCRIPT_PATH=${CI_ROOT}/grappa/bin
         ########################
         echo "GRAPPATOP=${CI_ROOT}/grappa" >> common/make.defs
-        ${MAKE} $PRK_TARGET
+        ${MAKE} -f Makefile.legacy $PRK_TARGET
         export PRK_TARGET_PATH=GRAPPA
         export PRK_MPI_PROCS=2
         export PRK_LAUNCHER=$MPI_ROOT/bin/mpirun
@@ -1118,6 +1138,6 @@ case "$PRK_TARGET" in
     alllegion)
         echo "Legion"
         echo "LEGIONTOP=${CI_ROOT}/legion" > common/make.defs
-        ${MAKE} $PRK_TARGET -k
+        ${MAKE} -f Makefile.legacy $PRK_TARGET -k
         ;;
 esac
